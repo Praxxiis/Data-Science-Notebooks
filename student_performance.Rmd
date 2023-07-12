@@ -1,0 +1,295 @@
+---
+title: "R Notebook"
+output: html_notebook
+---
+
+## Análisis de los datos
+
+```{r}
+head(exams) #visualizo el encabezado de los datos
+summary(exams) #Resumen de los datos
+#no se evidencian ausencias de datos 
+
+############ Análisis exploratorio ############
+
+plot(exams) #visualizo los datos
+
+tabla_genero <- table(exams$gender)
+
+
+par(mfrow = c(2,2)) #Creo ventanas
+hist(exams$math.score, main = "Notas matemática", xlab = "Notas", ylab = "Frecuencia")
+hist(exams$reading.score, main = "Notas lectura", xlab = "Notas", ylab = "Frecuencia")
+hist(exams$writing.score, main = "Notas escritura", xlab = "Notas", ylab = "Frecuencia")
+barplot(tabla_genero, main = "Sexo de la población", ylab = "Frecuencia")
+par(mfrow = c(2,2)) #Creo ventanas
+
+#busqueda de normalidad preliminar en los datos
+
+shapiro.test( x = exams$math.score )
+shapiro.test( x = exams$reading.score )
+shapiro.test( x = exams$writing.score )
+
+#Test de Shapiro-Wilk para saber si mis datos son normales
+#si el p valor es mayor que el 5% entonces significa que no hay suficiente evidencia
+#para rechazar la hipotesis de que sean normales (es decir si el p valor es mayor que
+#el 5% entonces los datos son normales)
+#por lo tanto aunque el histograma parezca normal, no lo son
+
+install.packages("moments")
+library(moments)
+
+skewness(exams$math.score) #no presenta mucha asimetria
+kurtosis(exams$math.score) #leptocurtica
+
+skewness(exams$reading.score) #no presenta mucha asimetria
+kurtosis(exams$reading.score) #leptocurtica
+
+skewness(exams$writing.score) #no presenta mucha asimetria
+kurtosis(exams$writing.score) #leptocurtica
+
+
+tabla_etnia <- table(exams$race.ethnicity)
+tabla_nivel_edu <- table(exams$parental.level.of.education)
+tabla_lunch <- table(exams$lunch)
+tabla_preparacion <- table(exams$test.preparation.course)
+
+barplot(tabla_etnia, main = "Etnias en la muestra", ylab = "Frecuencia")
+barplot(tabla_nivel_edu, main = "Nivel educacional de los padres", ylab = "Frecuencia")
+barplot(tabla_lunch, main = "Beca alimenticia", ylab = "Frecuencia")
+barplot(tabla_preparacion, main = "Curso de preparación para la evaluación", ylab = "Frecuencia")
+
+#en los histogramas de las notas obtenidas y en el gráfico de frecuencias de las etnias se observa visualmente una distribución normal.
+
+####### boxplots en busca de pistas sobre outliers ########
+
+par(mfrow = c(2,2))
+
+boxplot(exams$math.score, main = "Boxplot puntaje matemática")
+boxplot(exams$reading.score, main = "Boxplot puntaje lectura")
+boxplot(exams$writing.score, main = "Boxplot puntaje escritura")
+
+## se aprecian outliers en las tres variables
+
+#Comparo la cantidad de puntajes maximos por asignatura dependiendo de su sexo
+max_math_male <- nrow(exams[exams$gender=="male" & exams$math.score==100,])
+max_reading_male <- nrow(exams[exams$gender=="male" & exams$reading.score==100,])
+max_writing_male <- nrow(exams[exams$gender=="male" & exams$writing.score==100,])
+
+max_math_female <- nrow(exams[exams$gender=="female" & exams$math.score==100,])
+max_reading_female <- nrow(exams[exams$gender=="female" & exams$reading.score==100,])
+max_writing_female <- nrow(exams[exams$gender=="female" & exams$writing.score==100,])
+
+#grafico
+
+par(mfrow = c(2,2))
+
+puntajes_matematica <- c(4, 0)
+puntajes_lectura <- c(4, 6)
+puntaje_escritura <- c(4, 9)
+
+etiqueta_math <- c("Hombres","Mujeres") # vector con etiquetas
+etiquetas_math <- paste(etiqueta_math, round(puntajes_matematica/sum(puntajes_matematica)*100),"%") # Añadimos porcentajes a etiquetas
+
+pie(puntajes_matematica, labels = etiquetas_math, main="Puntaje máximo de matemática por sexo")
+
+
+etiqueta_math <- c("Hombres","Mujeres")# vector con etiquetas
+etiquetas_lectura <- paste(etiqueta_math,round(puntajes_lectura/sum(puntajes_lectura)*100),"%")
+pie(puntajes_lectura, labels = etiquetas_lectura, main="Puntaje máximo lectura por sexo")
+
+
+etiqueta_math <- c("Hombres","Mujeres") # vector con etiquetas
+etiquetas_escritura <- paste(etiqueta_math,round(puntaje_escritura/sum(puntaje_escritura)*100),"%")
+pie(puntaje_escritura, labels = etiquetas_escritura, main = "Puntaje máximo escritura por sexo")
+
+#observamos que salvo matemática, existe un mayor número de mujeres que obtienen el puntaje máximo en lectura y escritura
+
+```
+
+## Procesamiento y generación de modelos
+
+```{r}
+#busqueda de normalidad preliminar en los datos
+
+shapiro.test( x = exams$math.score )
+shapiro.test( x = exams$reading.score )
+shapiro.test( x = exams$writing.score )
+
+#Test de Shapiro-Wilk para saber si mis datos son normales
+#si el p valor es mayor que el 5% entonces significa que no hay suficiente evidencia
+#para rechazar la hipotesis de que sean normales (es decir si el p valor es mayor que
+#el 5% entonces los datos son normales)
+
+
+#Busquda de correlaciones
+
+## variables categoricas ##
+
+oneway1 <- aov(exams$math.score ~ exams$gender)
+oneway2 <- aov(exams$math.score ~ exams$race.ethnicity)
+oneway3 <- aov(exams$math.score ~ exams$parental.level.of.education)
+oneway4 <- aov(exams$math.score ~ exams$lunch)
+oneway5 <- aov(exams$math.score ~ exams$test.preparation.course)
+
+summary(oneway1)
+summary(oneway2)
+summary(oneway3)
+summary(oneway4)
+summary(oneway5)
+
+#por lo tanto todas las variables deberian ser tomadas en cuenta
+
+cor(exams[,6:8])
+#se aprecian fuertes correlaciones entre todas las asignaturas
+#por lo tanto veremos la correlacion parcial
+
+#Correlacion parcial
+install.packages("MASS")
+library(ppcor)
+pcor(exams[,6:8])
+#el modelo se enfocara en predecir puntajes en matemática, por lo tanto
+#podemos apreciar que realmente no existe una correlación fuerte entre 
+#los puntajes de las demás asignaturas con matemática. Sin embargo y como era de esperarse, el puntaje de lectura si esta influenciado con el de escritura y vice versa.
+
+#comienzo a ver los posibles modelos con diferentes metodos y test
+
+ajuste1 <-lm(math.score ~ 1,data = exams)
+forw <- stepAIC(ajuste1,scope=list(upper = ~ gender + race.ethnicity + parental.level.of.education + lunch + test.preparation.course + reading.score + writing.score,lower = ~1),direction = "forward")
+
+#en contradiccion con lo que se penso en algun momento con la correlación parcial, los puntajes de lectura y escritura si influyen en el desempeño de matemática.
+
+ajusteFORWAIC <- lm(math.score ~ reading.score + gender + writing.score + lunch + 
+    test.preparation.course + race.ethnicity, data = exams)
+forw$anova 
+summary(ajusteFORWAIC)
+
+#el modelo se ajusta un 87.5% a los datos reales. Observando las estadisticas vemos que las etnias determinantes son solo el grupo E, las demas no, por lo tanto podemos intentar sacarlas del modelo, primando el principio de maxima representación de informacion con el modelo mas simple.
+
+ajusteFORWAIC2 <- lm(math.score ~ reading.score + gender + writing.score + lunch + 
+    test.preparation.course , data = exams)
+forw$anova 
+summary(ajusteFORWAIC2)
+
+#Sacando las etnias la representación disminuyó solo un 1%, por lo tanto nos quedaremos con este modelo.
+
+#Debo seguir haciendo el forward con el BIC puesto que el BIC es mejor para la prediccion y el AIC es mejor para el modelado
+#primero definimos la dimensión
+n <- dim(exams)[1]
+forwBIC <- stepAIC(ajuste1,scope=list(upper=~math.score ~ reading.score + gender + writing.score + lunch + 
+    test.preparation.course + race.ethnicity, data = exams,lower=~1),k=log(n),direction = "forward")
+forwBIC$anova #nos da un modelo mas conciso
+
+ajusteFBIC <- lm(math.score ~ reading.score + gender + writing.score + lunch + 
+    test.preparation.course + race.ethnicity, data = exams)
+summary(ajusteFBIC)
+
+#nos arroja el mismo modelo que el forward aic, por lo tanto tambien sacaremos la etnicidad.
+
+#usando el forward con el test de Fisher
+add1(ajuste1, scope = ~ reading.score + gender + writing.score + lunch + test.preparation.course + race.ethnicity, test = "F")
+
+add1(update(ajuste1,~ .+reading.score ), scope=~reading.score + gender + writing.score + lunch + test.preparation.course + race.ethnicity, test = "F")
+
+add1(update(ajuste1,~ .+reading.score + gender), scope=~reading.score + gender + writing.score + lunch + test.preparation.course + race.ethnicity, test = "F")
+
+add1(update(ajuste1,~ .+reading.score + gender + writing.score), scope=~reading.score + gender + writing.score + lunch + test.preparation.course + race.ethnicity, test = "F")
+
+add1(update(ajuste1,~ .+reading.score + gender + writing.score + lunch), scope=~reading.score + gender + writing.score + lunch + test.preparation.course + race.ethnicity, test = "F")
+
+add1(update(ajuste1,~ .+reading.score + gender + writing.score + lunch + test.preparation.course), scope=~reading.score + gender + writing.score + lunch + test.preparation.course + race.ethnicity, test = "F")
+
+#el test de Fisher sugiere añadir la etnicidad, por lo tanto nuestro modelo considerara la etnicidad.
+
+#Escribiendo el modelo
+
+modelo <- lm(math.score ~ reading.score + gender + writing.score + lunch + 
+    test.preparation.course + race.ethnicity, data = exams)
+
+#Analizando problema de outliers
+
+install.packages("car")
+library(car)
+
+influencePlot(modelo) # existen tres outliers a remover
+
+atipicos <- c(83,100,774)
+
+exams.s.o <- exams[-atipicos,] #quitando outliers
+
+modelo.s.o <- lm(math.score ~ reading.score + gender + writing.score + lunch + 
+    test.preparation.course + race.ethnicity, data = exams.s.o)
+
+summary(modelo.s.o) #mejoro un poco la precision del modelo
+
+#generando intervalos de confianza de estimadores
+
+confint(modelo.s.o, "reading.score", level = 0.95)
+confint(modelo.s.o, "writing.score", level = 0.95)
+
+############################verificacion del supuesto de normalidad###################################
+
+qqPlot(modelo.s.o$residuals) #a pesar de existir datos en la frontera y dos fuera de ellos, se puede decir que existe supuesto de normalidad
+
+#verificacion de la normalidad
+library(e1071)
+kurtosis(modelo.s.o$residuals) #me indica si tiene mucha cola
+skewness(modelo.s.o$residuals) #asimetría
+
+library(nortest)
+ad.test(modelo.s.o$residuals) #si el p valor es mayor al 5% entonces si son normales
+cvm.test(modelo.s.o$residuals)
+lillie.test(modelo.s.o$residuals)
+#todos los test indican normalidad
+
+plot(modelo.s.o$fitted.values,modelo.s.o$residuals) #prueba grafica de heterocedasticidad
+
+
+```
+
+## Generando conjuntos de datos de entrenamiento y test
+
+```{r}
+n <- nrow(exams.s.o) #número de observaciones
+n2 <- floor(n*0.2)
+x <- seq(1,n,1)
+z <- sample(x,n2, replace = FALSE, prob = NULL) #Muestreo sin reemplazo
+mz <-- z
+exams.training <- exams.s.o[mz,] #muestra para construir el modelo
+exams.test <- exams.s.o[z,]
+
+################### evaluacion con la muestra test ###################
+#constuiremos el modelo con los datos de entrenamiento
+
+modelo.training <- lm(math.score ~ reading.score + gender + writing.score + lunch +
+    test.preparation.course + race.ethnicity, data = exams.training)
+summary(modelo.s.o)
+
+# calculamos las predicciones con la muestra test
+
+a.test <- predict(modelo.training, newdata = data.frame(exams.test), interval = "prediction")
+
+plot(exams.test[,6],a.test[,1]) #evaluacion visual del ajuste
+abline(0,1)
+
+mse <- mean((a.test[,1]-exams.test[,6])^2) #se calcula el mse: cuanto se equivoca el modelo.
+mse
+
+
+```
+
+## Predicciones
+
+```{r}
+### prediccion individual: 
+
+#Se hace una prediccion sobre un individuo nuevo
+
+math_score_new <- data.frame("male", "group C", "standard", "completed" ,"NA",87,79)
+names(math_score_new) <- c("gender", "race.ethnicity", "lunch", "test.preparation.course", "math.score", "reading.score", "writing.score")
+
+pred.modelo.s.o <- predict(modelo.s.o, newdata = data.frame(math_score_new), interval = "prediction")
+pred.modelo.s.o #prediccion del puntaje en matemática en base a los predictores del ajuste, con un minimo de 73 puntos y un maximo de 94 puntos, con un 95% de confianza.
+
+
+```
